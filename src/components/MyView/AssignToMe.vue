@@ -18,18 +18,21 @@
         <el-row class="tl-bar">
           <el-col :span="24">
             <div class="tl-bar-item">
-              <el-badge :value="statusCount.draftingcount" class="item">
-                <el-button >Drafting</el-button>
-              </el-badge>
-              <el-badge :value="statusCount.planningcount" class="item">
-                <el-button >Planning</el-button>
-              </el-badge>
-              <el-badge :value="statusCount.runningcount" class="item" type="primary">
-                <el-button>Running</el-button>
-              </el-badge>
-              <el-badge :value="statusCount.donecount" class="item" type="warning">
-                <el-button>Done</el-button>
-              </el-badge>
+              <div style="padding:10px;margin: -14px;">
+                <el-badge :value="statusCount.draftingcount" class="item">
+                  <el-button @click.native="getTaskListByStatus('Drafting')">Drafting</el-button>
+                </el-badge>
+                <el-badge :value="statusCount.planningcount" class="item">
+                  <el-button @click.native="getTaskListByStatus('Planning')">Planning</el-button>
+                </el-badge>
+                <el-badge :value="statusCount.runningcount" class="item" type="primary">
+                  <el-button @click.native="getTaskListByStatus('Running')">Running</el-button>
+                </el-badge>
+                <el-badge :value="statusCount.donecount" class="item" type="warning">
+                  <el-button @click.native="getTaskListByStatus('Done')">Done</el-button>
+                </el-badge>   
+                  <el-button @click="getTaskList" type="primary" class="item">Refresh</el-button>      
+              </div>
               <el-select
                 v-model="taskGroupsVal"
                 multiple
@@ -60,7 +63,7 @@
               </div>
               <div>
               <span>You've got {{taskWarning.length}} tasks not complete in this sprint!</span>
-              <div v-for="(task,index) in taskWarning" :key="index" class="text item">
+              <div v-for="(task,index) in taskWarning" :key="index" class="text1 item2">
                 <span>{{ task.task_name}}</span>
               </div>                
               </div>
@@ -115,8 +118,23 @@ export default {
       console.log("PieCharts")
       this.$router.push({path: 'PieCharts'})
     },
-    filterTask () {
-
+    async filterTask () {
+      console.log(this.$data.taskGroupsVal)
+      for(var i = 0 ; i < this.$data.taskGroupsVal.length ; i ++){
+        const res = await http.post('/tasks/getTaskGroupIdByName',{
+            reqTaskGroupName:this.$data.taskGroupsVal[i]
+        })
+        console.log(res)        
+      }
+    },
+    async getTaskListByStatus (iStatus) {
+      console.log(iStatus)
+      const res = await http.post('/tasks/getTaskListByStatus',{
+        AssignId : 1,
+        reqStatus : iStatus
+      })
+      console.log(res)
+      this.$data.taskslistData = res.data.data
     },
     getCurrentMonthFirst () {
       var date = new Date()
@@ -133,6 +151,13 @@ export default {
       return firstDate
     },
     async getTaskList () {
+     this.statusCount = {
+        planningcount: 0,
+        draftingcount: 0,
+        runningcount: 0,
+        donecount: 0        
+      }
+      this.$data.taskWarning = []
       console.log('Start to get task list')
       var today = new Date()
       this.$data.activeNames = []
@@ -182,8 +207,13 @@ export default {
           this.$data.taskWarning.push(iTask)
       }
     },
-    searchTask () {
-
+    async searchTask () {
+      const res = await http.post('/tasks/getTaskByName',{
+        reqTaskName: this.$data.searchVal
+      })
+      console.log(res)
+      this.$data.taskslistData = res.data.data
+      console.log(this.$data.taskslistData)
     },
     countStatus (taskstatus) {
       if(taskstatus=='Planning'){
@@ -201,7 +231,6 @@ export default {
     var firstDate = this.getCurrentMonthFirst()
     //this.resetTimesheet(firstDate)
     this.getTaskList()
-    this.$data.taskGroups = []
   }
 }
 </script>
@@ -259,11 +288,6 @@ input::-webkit-inner-spin-button {
 input[type="number"]{
   -moz-appearance: textfield;
 }
-.item {
-  margin-top: 10px;
-  margin-right: 40px;
-
-}
 .tl-bar{
   height: 50px;
   margin-top: 20px;
@@ -285,6 +309,14 @@ input[type="number"]{
 }
 
 .item {
+  float: left;
+  margin-right: 22px;
+}
+.text1 {
+  font-size: 14px;
+}
+
+.item1 {
   margin-bottom: 18px;
 }
 
