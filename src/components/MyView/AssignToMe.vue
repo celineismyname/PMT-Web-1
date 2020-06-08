@@ -61,11 +61,27 @@
                 <span>Task Warning</span>
                 <el-button style="float: right; padding: 3px 0" v-if="false" type="text">操作按钮</el-button>
               </div>
-              <div>
               <span>You've got {{taskWarning.length}} tasks not complete in this sprint!</span>
               <div v-for="(task,index) in taskWarning" :key="index" class="text1 item2">
-                <span>{{ task.task_name}}</span>
-              </div>                
+                <el-table
+                  :data="taskWarning"
+                  style="width: 100%">
+                  <el-table-column
+                    prop="task_name"
+                    label="Task Name"
+                    width="160">
+                  </el-table-column>
+                  <el-table-column
+                    prop="task_degree"
+                    label="Degree"
+                    width="80">
+                  </el-table-column>
+                  <el-table-column
+                    prop="task_taskGroup.EndTime"
+                    label="EndTime"
+                    width="180">
+                  </el-table-column>
+                </el-table>                             
               </div>
             </el-card>
           </el-col>
@@ -77,6 +93,19 @@
               <el-table-column prop="task_desc" label="Title" show-overflow-tooltip align="left" min-width="230px" key="2"></el-table-column>
               <el-table-column prop="task_status" label="Status" align="center" width="130px" key="3"></el-table-column>
             </el-table>
+          </el-col>
+        </el-row>
+        <el-row class="tl-pagination">
+          <el-col :span="24" class="tl-pagination-col">
+            <el-pagination
+              @size-change="handleSizeChange"
+              @current-change="handleCurrentChange"
+              :current-page="currentPage"
+              :page-sizes="[10, 20, 50, 100]"
+              :page-size="pageSize"
+              layout="total, sizes, prev, pager, next, jumper"
+              :total="tasksTotalSize">
+            </el-pagination>
           </el-col>
         </el-row>
       </el-main>
@@ -109,7 +138,10 @@ export default {
       searchVal: '',
       taskWarning: [],
       taskGroups: [],
-      taskGroupsVal: ''
+      taskGroupsVal: '',
+      currentPage: 1,
+      pageSize: 10,
+      tasksTotalSize: 0,      
     }
   },
   methods: {
@@ -136,6 +168,16 @@ export default {
       console.log(res)
       this.$data.taskslistData = res.data.data
     },
+    handleSizeChange (val) {
+      this.$data.currentPage = 1
+      this.$data.pageSize = val
+      this.getTaskList(1, val)
+    },
+    handleCurrentChange (val) {
+      var pageSize = this.$data.pageSize
+      this.$data.currentPage = val
+      this.getTaskList(val, pageSize)
+    },    
     getCurrentMonthFirst () {
       var date = new Date()
       date.setDate(1)
@@ -150,19 +192,24 @@ export default {
       var firstDate = new Date(date.getFullYear(), month - 1, day)
       return firstDate
     },
-    async getTaskList () {
-     this.statusCount = {
+    async getTaskList (iPage,iSize) {
+      console.log('Start to get task list')
+      this.statusCount = {
         planningcount: 0,
         draftingcount: 0,
         runningcount: 0,
         donecount: 0        
-      }
+      }      
       this.$data.taskWarning = []
-      console.log('Start to get task list')
+      this.$data.pageSize = iSize
+      this.$data.currentPage = iPage
+      console.log(this.$data.pageSize)
       var today = new Date()
       this.$data.activeNames = []
-      const res = await http.post('/tasks/getAssignToTaskLevel3',{
+      const res = await http.get('/tasks/getAssignToTaskLevel3',{
         AssignId: 1,
+        reqPage:iPage,
+        reqSize:iSize
       })
       var Parenttaskname = []
       for(var i = 0 ; i < res.data.data.length ; i++){
@@ -174,12 +221,16 @@ export default {
       }
       const res2 = await http.get('/tasks/getAssignToTaskLevel4NotLevel3',{
           ParentTaskName: Parenttaskname,
-          AssignId: 1
+          AssignId: 1,
+          reqPage:iPage,
+          reqSize:iSize
         })
       for(var i = 0 ; i < res.data.data.length ; i++){
-        const res1 = await http.post('/tasks/getAssignToTaskLevel4ForLevl3',{
+        const res1 = await http.get('/tasks/getAssignToTaskLevel4ForLevl3',{
           AssignId: 1,
-          ParentTaskName: res.data.data[i].task_name
+          ParentTaskName: res.data.data[i].task_name,
+          reqPage:iPage,
+          reqSize:iSize
         })
         if(res1.data.status!=1||res1.data.data!=null){
            res.data.data[i].children = res1.data.data
@@ -204,6 +255,7 @@ export default {
       var endDate = new Date(iTask.task_taskGroup.EndTime)
       var days = parseInt(Math.ceil((endDate-today)/(1000*3600*24)))
       if(days<5){
+          iTask.task_degree = Math.round(iTask.task_effort / parseFloat(iTask.task_estimation) * 10000) / 100.00 + "%"
           this.$data.taskWarning.push(iTask)
       }
     },
@@ -230,7 +282,11 @@ export default {
   created () {
     var firstDate = this.getCurrentMonthFirst()
     //this.resetTimesheet(firstDate)
-    this.getTaskList()
+    this.$data.pageSize = 10
+    this.$data.taskWarning = []
+    this.$data.currentPage = 1
+    this.getTaskList(1,10)
+    this.$data.taskGroups = []
   }
 }
 </script>

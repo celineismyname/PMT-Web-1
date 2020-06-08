@@ -1391,6 +1391,7 @@ export default {
           this.getTaskType(null)
           this.$data.taskLv3Form = {}
           this.$data.taskLv3Form = res.data.data
+          if(this.$data.taskLv3Form.task_TypeTag === 'Regular Task')
           console.log(typeof(this.$data.taskLv3Form.task_deliverableTag))
           if(this.$data.taskLv3Form.task_deliverableTag!=null){
             this.$data.taskLv3Form.task_deliverableTag = this.$data.taskLv3Form.task_deliverableTag.split(",")            
