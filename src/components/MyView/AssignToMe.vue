@@ -31,8 +31,11 @@
                 <el-badge :value="statusCount.donecount" class="item" type="warning">
                   <el-button @click.native="getTaskListByStatus('Done')">Done</el-button>
                 </el-badge>   
-                  <el-button @click="getTaskList" type="primary" class="item">Refresh</el-button>      
+                  <el-button @click="getTaskList(1,10)" type="primary" class="item">Refresh</el-button>      
               </div>
+              <el-input style="margin-right:30px" placeholder="Search task..." v-model="searchVal" class="tl-bar-item-input" clearable @keyup.enter.native="searchTask">
+                <el-button slot="append" icon="el-icon-search" @click="searchTask"></el-button>
+              </el-input>
               <el-select
                 v-model="taskGroupsVal"
                 multiple
@@ -47,22 +50,18 @@
                   :value="item.Name">
                 </el-option>
               </el-select>
-              <el-input placeholder="Search task..." v-model="searchVal" class="tl-bar-item-input" clearable @keyup.enter.native="searchTask">
-                <el-button slot="append" icon="el-icon-search" @click="searchTask"></el-button>
-              </el-input>
               <el-button class="tl-bar-item-btn" type="primary"  @click="filterTask">Filter</el-button>            
             </div>
           </el-col>
         </el-row>
         <el-row class="tl-main">
-          <el-col :span="8" style="margin-top:1px; padding: 0 5px 0 5px;">
+          <el-col :span="7" style="margin-top:1px; ">
             <el-card class="box-card" shadow="hover" >
               <div slot="header" class="clearfix">
                 <span>Task Warning</span>
                 <el-button style="float: right; padding: 3px 0" v-if="false" type="text">操作按钮</el-button>
               </div>
               <span>You've got {{taskWarning.length}} tasks not complete in this sprint!</span>
-              <div v-for="(task,index) in taskWarning" :key="index" class="text1 item2">
                 <el-table
                   :data="taskWarning"
                   style="width: 100%">
@@ -81,11 +80,15 @@
                     label="EndTime"
                     width="180">
                   </el-table-column>
+                  <el-table-column fixed="right" label="Edit" align="center" width="50px">
+                    <template slot-scope="scope">
+                      <el-button @click="openTaskById(scope.row.task_id)" :style="{'background-color': btnColor, 'border': 'none', 'color': 'white'}" size="small" icon="el-icon-edit"></el-button>
+                      </template>
+                  </el-table-column>
                 </el-table>                             
-              </div>
             </el-card>
           </el-col>
-          <el-col :span="16">
+          <el-col :span="17" >
             <el-table :data="taskslistData" class="tl-main-table"  fit empty-text="No Data"
               row-key="task_name" lazy 
               :tree-props="{children: 'children', hasChildren: 'hasChildren'}">
@@ -101,15 +104,16 @@
               @size-change="handleSizeChange"
               @current-change="handleCurrentChange"
               :current-page="currentPage"
-              :page-sizes="[10, 20, 50, 100]"
+              :page-sizes="[10, 50, 100, 500]"
               :page-size="pageSize"
               layout="total, sizes, prev, pager, next, jumper"
-              :total="tasksTotalSize">
+              :total="taskslistData.length">
             </el-pagination>
           </el-col>
         </el-row>
       </el-main>
     </el-container>
+
   </div>
 </template>
 
@@ -150,6 +154,29 @@ export default {
       console.log("PieCharts")
       this.$router.push({path: 'PieCharts'})
     },
+    openTaskById (iTaskId) {
+      var reqTaskId = iTaskId
+      var url = '/tasks/getTaskById'
+      var criteria = {
+        reqTaskId: reqTaskId
+      }
+      this.getTask(url, criteria)
+    },
+    async getTask (iUrl, iCriteria) {
+      const res = await http.post(iUrl, iCriteria)
+      console.log(res)
+      if (res.data.status === 0) {
+        var rtnTask = res.data.data
+        if (rtnTask.task_level === 3) {
+          // Clear existing data
+          
+        }
+        if (rtnTask.task_level === 4) {
+          // Clear existing data
+          
+        }
+      }
+    },
     async filterTask () {
       console.log(this.$data.taskGroupsVal)
       for(var i = 0 ; i < this.$data.taskGroupsVal.length ; i ++){
@@ -177,7 +204,7 @@ export default {
       var pageSize = this.$data.pageSize
       this.$data.currentPage = val
       this.getTaskList(val, pageSize)
-    },    
+    },
     getCurrentMonthFirst () {
       var date = new Date()
       date.setDate(1)
@@ -203,7 +230,6 @@ export default {
       this.$data.taskWarning = []
       this.$data.pageSize = iSize
       this.$data.currentPage = iPage
-      console.log(this.$data.pageSize)
       var today = new Date()
       this.$data.activeNames = []
       const res = await http.get('/tasks/getAssignToTaskLevel3',{
@@ -246,6 +272,7 @@ export default {
         this.countStatus(res2.data.data[i].task_status)
         this.gettaskWarning(res2.data.data[i],today)
       }
+      console.log(this.$data.taskWarning)
       const res3 = await http.post('/tasks/getTaskGroup')      
       console.log(res3)
       this.$data.taskGroups =  res3.data.data
