@@ -31,7 +31,7 @@
                 <el-badge :value="statusCount.donecount" class="item" type="warning">
                   <el-button @click.native="getTaskListByStatus('Done')">Done</el-button>
                 </el-badge>   
-                  <el-button @click="getTaskList(1,10)" type="primary" class="item">Refresh</el-button>      
+                  <el-button @click="getTaskList()" type="primary" class="item">Refresh</el-button>      
               </div>
               <el-input style="margin-right:30px" placeholder="Search task..." v-model="searchVal" class="tl-bar-item-input" clearable @keyup.enter.native="searchTask">
                 <el-button slot="append" icon="el-icon-search" @click="searchTask"></el-button>
@@ -63,7 +63,7 @@
               </div>
               <span>You've got {{taskWarning.length}} tasks not complete in this sprint!</span>
                 <el-table
-                  :data="taskWarning"
+                  :data="taskWarning.slice((currentPage1-1)*pageSize1,currentPage1*pageSize1)"
                   style="width: 100%">
                   <el-table-column
                     prop="task_name"
@@ -85,30 +85,33 @@
                       <el-button @click="openTaskById(scope.row.task_id)" :style="{'background-color': btnColor, 'border': 'none', 'color': 'white'}" size="small" icon="el-icon-edit"></el-button>
                       </template>
                   </el-table-column>
-                </el-table>                             
+                </el-table>
+                  <el-pagination
+                    @current-change="handleCurrentChange1"
+                    :current-page="currentPage1"
+                    :page-sizes="[5, 10, 50, 100]"
+                    :page-size="pageSize1"
+                    layout="total, sizes, prev, pager, next, jumper"
+                    :total="taskWarning.length">
+                  </el-pagination>                             
             </el-card>
           </el-col>
           <el-col :span="17" >
-            <el-table :data="taskslistData" class="tl-main-table"  fit empty-text="No Data"
+            <el-table :data="taskslistData.slice((currentPage-1)*pageSize,currentPage*pageSize)" class="tl-main-table"  fit empty-text="No Data"
               row-key="task_name" lazy 
               :tree-props="{children: 'children', hasChildren: 'hasChildren'}">
               <el-table-column prop="task_name" label="Number" width="180px" key="1"></el-table-column>
               <el-table-column prop="task_desc" label="Title" show-overflow-tooltip align="left" min-width="230px" key="2"></el-table-column>
               <el-table-column prop="task_status" label="Status" align="center" width="130px" key="3"></el-table-column>
             </el-table>
-          </el-col>
-        </el-row>
-        <el-row class="tl-pagination">
-          <el-col :span="24" class="tl-pagination-col">
-            <el-pagination
-              @size-change="handleSizeChange"
-              @current-change="handleCurrentChange"
-              :current-page="currentPage"
-              :page-sizes="[10, 50, 100, 500]"
-              :page-size="pageSize"
-              layout="total, sizes, prev, pager, next, jumper"
-              :total="taskslistData.length">
-            </el-pagination>
+              <el-pagination
+                @current-change="handleCurrentChange"
+                :current-page="currentPage"
+                :page-sizes="[10, 50, 100, 500]"
+                :page-size="pageSize"
+                layout="total, sizes, prev, pager, next, jumper"
+                :total="taskslistData.length">
+              </el-pagination>            
           </el-col>
         </el-row>
       </el-main>
@@ -129,7 +132,6 @@ export default {
       isActive: true,
       headerColor: utils.themeStyle[this.$store.getters.getThemeStyle].headerColor,
       btnColor: utils.themeStyle[this.$store.getters.getThemeStyle].btnColor,
-      activeNames: [],
       assignToMeList: [],
       taskslistData: [],
       taskslistLoading:false,
@@ -144,8 +146,9 @@ export default {
       taskGroups: [],
       taskGroupsVal: '',
       currentPage: 1,
-      pageSize: 10,
-      tasksTotalSize: 0,      
+      currentPage1:1,
+      pageSize1:5,
+      pageSize: 10   
     }
   },
   methods: {
@@ -169,11 +172,11 @@ export default {
         var rtnTask = res.data.data
         if (rtnTask.task_level === 3) {
           // Clear existing data
-          
+
         }
         if (rtnTask.task_level === 4) {
           // Clear existing data
-          
+
         }
       }
     },
@@ -195,15 +198,15 @@ export default {
       console.log(res)
       this.$data.taskslistData = res.data.data
     },
-    handleSizeChange (val) {
-      this.$data.currentPage = 1
-      this.$data.pageSize = val
-      this.getTaskList(1, val)
-    },
     handleCurrentChange (val) {
-      var pageSize = this.$data.pageSize
+      console.log("handleCurrentChange")
       this.$data.currentPage = val
-      this.getTaskList(val, pageSize)
+      this.getTaskList()
+    },
+    handleCurrentChange1 (val) {
+      var pageSize1 = this.$data.pageSize1
+      this.$data.currentPage1 = val
+      this.gettaskWarning()
     },
     getCurrentMonthFirst () {
       var date = new Date()
@@ -219,7 +222,7 @@ export default {
       var firstDate = new Date(date.getFullYear(), month - 1, day)
       return firstDate
     },
-    async getTaskList (iPage,iSize) {
+    async getTaskList () {
       console.log('Start to get task list')
       this.statusCount = {
         planningcount: 0,
@@ -227,42 +230,27 @@ export default {
         runningcount: 0,
         donecount: 0        
       }      
-      this.$data.taskWarning = []
-      this.$data.pageSize = iSize
-      this.$data.currentPage = iPage
-      var today = new Date()
-      this.$data.activeNames = []
       const res = await http.get('/tasks/getAssignToTaskLevel3',{
         AssignId: 1,
-        reqPage:iPage,
-        reqSize:iSize
       })
       var Parenttaskname = []
       for(var i = 0 ; i < res.data.data.length ; i++){
         Parenttaskname.push(res.data.data[i].task_name)
         this.countStatus(res.data.data[i].task_status)
-        if(res.data.data[i].task_taskGroup!=null){
-          this.gettaskWarning(res.data.data[i],today)
-        }
       }
       const res2 = await http.get('/tasks/getAssignToTaskLevel4NotLevel3',{
           ParentTaskName: Parenttaskname,
           AssignId: 1,
-          reqPage:iPage,
-          reqSize:iSize
         })
       for(var i = 0 ; i < res.data.data.length ; i++){
         const res1 = await http.get('/tasks/getAssignToTaskLevel4ForLevl3',{
           AssignId: 1,
           ParentTaskName: res.data.data[i].task_name,
-          reqPage:iPage,
-          reqSize:iSize
         })
         if(res1.data.status!=1||res1.data.data!=null){
            res.data.data[i].children = res1.data.data
            for(var j = 0 ;j < res1.data.data.length ; j++){
              this.countStatus(res1.data.data[j].task_status)
-             this.gettaskWarning(res1.data.data[j],today)
            }
         }
       }
@@ -270,29 +258,22 @@ export default {
       for(var i = 0 ; i < res2.data.data.length;i++){
         this.$data.taskslistData.push(res2.data.data[i])
         this.countStatus(res2.data.data[i].task_status)
-        this.gettaskWarning(res2.data.data[i],today)
       }
-      console.log(this.$data.taskWarning)
       const res3 = await http.post('/tasks/getTaskGroup')      
       console.log(res3)
       this.$data.taskGroups =  res3.data.data
     },
-    gettaskWarning (iTask,today) {
-      iTask.task_taskGroup.EndTime.replace(/-/g,"/")
-      var endDate = new Date(iTask.task_taskGroup.EndTime)
-      var days = parseInt(Math.ceil((endDate-today)/(1000*3600*24)))
-      if(days<5){
-          iTask.task_degree = Math.round(iTask.task_effort / parseFloat(iTask.task_estimation) * 10000) / 100.00 + "%"
-          this.$data.taskWarning.push(iTask)
-      }
+    async gettaskWarning (iTask) {
+      const res = await http.get('/tasks/getTaskWarning',{
+        AssignId : 1
+      }) 
+      this.$data.taskWarning = res.data.data
     },
     async searchTask () {
       const res = await http.post('/tasks/getTaskByName',{
         reqTaskName: this.$data.searchVal
       })
-      console.log(res)
       this.$data.taskslistData = res.data.data
-      console.log(this.$data.taskslistData)
     },
     countStatus (taskstatus) {
       if(taskstatus=='Planning'){
@@ -305,15 +286,21 @@ export default {
         this.$data.statusCount.donecount++;
       }
     },
+    getList(){
+      this.getTaskList()
+      this.gettaskWarning()
+    }
   },
   created () {
     var firstDate = this.getCurrentMonthFirst()
     //this.resetTimesheet(firstDate)
     this.$data.pageSize = 10
+    this.$data.pageSize1 = 5
     this.$data.taskWarning = []
     this.$data.currentPage = 1
-    this.getTaskList(1,10)
+    this.$data.currentPage1 = 1
     this.$data.taskGroups = []
+    this.getList()
   }
 }
 </script>
