@@ -19,19 +19,19 @@
           <el-col :span="24">
             <div class="tl-bar-item">
               <div style="padding:10px;margin: -14px;">
-                <el-badge :value="statusCount.draftingcount" class="item">
+                <el-badge :value="statusCount.draftingcount" class="item1">
                   <el-button @click.native="getTaskListByStatus('Drafting')">Drafting</el-button>
                 </el-badge>
-                <el-badge :value="statusCount.planningcount" class="item">
+                <el-badge :value="statusCount.planningcount" class="item1">
                   <el-button @click.native="getTaskListByStatus('Planning')">Planning</el-button>
                 </el-badge>
-                <el-badge :value="statusCount.runningcount" class="item" type="primary">
+                <el-badge :value="statusCount.runningcount" class="item1" type="primary">
                   <el-button @click.native="getTaskListByStatus('Running')">Running</el-button>
                 </el-badge>
-                <el-badge :value="statusCount.donecount" class="item" type="warning">
+                <el-badge :value="statusCount.donecount" class="item1" type="warning">
                   <el-button @click.native="getTaskListByStatus('Done')">Done</el-button>
                 </el-badge>   
-                  <el-button @click="getTaskList()" type="primary" class="item">Refresh</el-button>      
+                  <el-button @click="getTaskList()" type="primary" class="item1">Refresh</el-button>      
               </div>
               <el-input style="margin-right:30px" placeholder="Search task..." v-model="searchVal" class="tl-bar-item-input" clearable @keyup.enter.native="searchTask">
                 <el-button slot="append" icon="el-icon-search" @click="searchTask"></el-button>
@@ -63,6 +63,7 @@
               </div>
               <span>You've got {{taskWarning.length}} tasks not complete in this sprint!</span>
                 <el-table
+                  v-loading="taskWarningLoading"
                   :data="taskWarning.slice((currentPage1-1)*pageSize1,currentPage1*pageSize1)"
                   style="width: 100%">
                   <el-table-column
@@ -97,7 +98,7 @@
             </el-card>
           </el-col>
           <el-col :span="17" >
-            <el-table :data="taskslistData.slice((currentPage-1)*pageSize,currentPage*pageSize)" class="tl-main-table"  fit empty-text="No Data"
+            <el-table v-loading="taskslistLoading" :data="taskslistData.slice((currentPage-1)*pageSize,currentPage*pageSize)" class="tl-main-table"  fit empty-text="No Data"
               row-key="task_name" lazy 
               :tree-props="{children: 'children', hasChildren: 'hasChildren'}">
               <el-table-column prop="task_name" label="Number" width="180px" key="1"></el-table-column>
@@ -115,7 +116,7 @@
           </el-col>
         </el-row>
       </el-main>
-    </el-container>
+    </el-container> -
   </div>
 </template>
 
@@ -134,6 +135,7 @@ export default {
       assignToMeList: [],
       taskslistData: [],
       taskslistLoading:false,
+      taskWarningLoading:false,
       statusCount:{
         planningcount: 0,
         draftingcount: 0,
@@ -222,20 +224,14 @@ export default {
       return firstDate
     },
     async getTaskList () {
+      //this.$data.taskslistLoading = true
       console.log('Start to get task list')
-      this.statusCount = {
-        planningcount: 0,
-        draftingcount: 0,
-        runningcount: 0,
-        donecount: 0        
-      }      
       const res = await http.get('/tasks/getAssignToTaskLevel3',{
         AssignId: 1,
       })
       var Parenttaskname = []
       for(var i = 0 ; i < res.data.data.length ; i++){
         Parenttaskname.push(res.data.data[i].task_name)
-        this.countStatus(res.data.data[i].task_status)
       }
       const res2 = await http.get('/tasks/getAssignToTaskLevel4NotLevel3',{
           ParentTaskName: Parenttaskname,
@@ -249,24 +245,26 @@ export default {
         if(res1.data.status!=1||res1.data.data!=null){
            res.data.data[i].children = res1.data.data
            for(var j = 0 ;j < res1.data.data.length ; j++){
-             this.countStatus(res1.data.data[j].task_status)
            }
         }
       }
       this.$data.taskslistData = res.data.data
       for(var i = 0 ; i < res2.data.data.length;i++){
         this.$data.taskslistData.push(res2.data.data[i])
-        this.countStatus(res2.data.data[i].task_status)
       }
       const res3 = await http.post('/tasks/getTaskGroup')      
       console.log(res3)
       this.$data.taskGroups =  res3.data.data
+      //this.$data.taskslistLoading = false      
+      this.countStatus(this.$data.taskslistData)
     },
     async gettaskWarning (iTask) {
+      this.$data.taskWarningLoading = true
       const res = await http.get('/tasks/getTaskWarning',{
         AssignId : 1
       }) 
       this.$data.taskWarning = res.data.data
+      this.$data.taskWarningLoading = false
     },
     async searchTask () {
       const res = await http.post('/tasks/getTaskByName',{
@@ -274,16 +272,26 @@ export default {
       })
       this.$data.taskslistData = res.data.data
     },
-    countStatus (taskstatus) {
-      if(taskstatus=='Planning'){
-        this.$data.statusCount.planningcount++;
-      }else if(taskstatus=='Drafting'){
-        this.$data.statusCount.draftingcount++;
-      }else if(taskstatus=='Running'){
-        this.$data.statusCount.runningcount++;
-      }else if(taskstatus=='Done'){
-        this.$data.statusCount.donecount++;
+    countStatus (iTaskslistData) {
+      this.$data.statusCount = {
+        planningcount: 0,
+        draftingcount: 0,
+        runningcount: 0,
+        donecount: 0        
       }
+      console.log(iTaskslistData)
+    for(var i = 0 ; i< iTaskslistData.length ; i ++ ){
+        if(iTaskslistData[i].task_status=='Planning'){
+          this.$data.statusCount.planningcount++;
+        }else if(iTaskslistData[i].task_status=='Drafting'){
+          this.$data.statusCount.draftingcount++;
+        }else if(iTaskslistData[i].task_status=='Running'){
+          this.$data.statusCount.runningcount++;
+        }else if(iTaskslistData[i].task_status=='Done'){
+          this.$data.statusCount.donecount++;
+        }
+      }
+    console.log(this.$data.statusCount)     
     },
     getList(){
       this.getTaskList()
@@ -346,7 +354,7 @@ export default {
   color: #ff6348;
   border-bottom: 1px solid #ff6348;
   cursor: default;
-}
+} 
 </style>
 <style>
 .tl-bar{
@@ -354,6 +362,7 @@ export default {
   margin-top: 20px;
   margin-left: 10px;
 }
+
 .tl-bar-item {
   height: 50px;
   width: 100%;
@@ -361,6 +370,7 @@ export default {
   justify-content: flex-start;
   align-items: center;
 }
+ 
 .tl-bar-item-btn{
   margin-left: 20px;
   border: 1px solid white;
@@ -369,19 +379,14 @@ export default {
   font-size: 14px;
   text-align: left;
 }
-
-.item {
-  float: left;
-  margin-right: 22px;
-}
 .text1 {
   font-size: 14px;
 }
-
 .item1 {
   margin-bottom: 18px;
+  float: left;
+  margin-right: 22px;
 }
-
 .clearfix:before,
 .clearfix:after {
   display: table;
@@ -396,6 +401,6 @@ export default {
   margin-left: 20px;
   border-radius: 30px;
   color: black;
-}
+} 
 
 </style>
