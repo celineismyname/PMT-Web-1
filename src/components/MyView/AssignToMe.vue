@@ -116,7 +116,6 @@
         </el-row>
       </el-main>
     </el-container>
-
   </div>
 </template>
 
@@ -350,14 +349,6 @@ export default {
 }
 </style>
 <style>
-
-input::-webkit-outer-spin-button,
-input::-webkit-inner-spin-button {
-  -webkit-appearance: none;
-}
-input[type="number"]{
-  -moz-appearance: textfield;
-}
 .tl-bar{
   height: 50px;
   margin-top: 20px;
@@ -372,6 +363,7 @@ input[type="number"]{
 }
 .tl-bar-item-btn{
   margin-left: 20px;
+  border: 1px solid white;
 }
 .text {
   font-size: 14px;
